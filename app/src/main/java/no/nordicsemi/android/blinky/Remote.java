@@ -31,7 +31,7 @@ public class Remote extends AppCompatActivity {
     private Button stop;
     private EditText editText;
     private String stateUrl;
-
+    private Timer timer;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -40,7 +40,7 @@ public class Remote extends AppCompatActivity {
         stop = findViewById(R.id.stop);
         editText = findViewById(R.id.ipAddress2);
         stateUrl = "http://" + editText.getText() + "/start/";
-        Timer timer = new Timer();
+        timer = new Timer();
         TimerTask task = new TimerTask() {
             @Override
             public void run() {
@@ -84,6 +84,15 @@ public class Remote extends AppCompatActivity {
                 showToast("Bot already in stop state");
             }
         });
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (timer != null) {
+            timer.cancel();
+        }
+
+        super.onDestroy();
     }
 
     private void setBotStateToContinue() {
