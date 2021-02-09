@@ -21,10 +21,18 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Message;
 import android.util.Base64;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.securepreferences.SecurePreferences;
 
@@ -34,11 +42,14 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 
 import no.nordicsemi.android.ble.livedata.state.ConnectionState;
 import no.nordicsemi.android.blinky.R;
+import no.nordicsemi.android.blinky.RequestSingleton;
 import no.nordicsemi.android.blinky.ScannerActivity;
 import no.nordicsemi.android.blinky.adapter.DiscoveredBluetoothDevice;
 import no.nordicsemi.android.blinky.profile.data.FileUploader;
@@ -52,119 +63,114 @@ import okhttp3.ResponseBody;
 import retrofit2.Retrofit;
 
 public class TakePicture extends AppCompatActivity {
-    public static final String EXTRA_DEVICE = "no.nordicsemi.android.blinky.EXTRA_DEVICE";
-
-    private BotViewModel viewModel;
-    private  boolean connected;
     private ListenableFuture<ProcessCameraProvider> cameraProviderFuture;
-    private int REQUEST_CODE_PERMISSIONS = 101;
-    private String[] REQUIRED_PERMISSIONS = new String[]{"android.permission.CAMERA",
-            "android.permission.WRITE_EXTERNAL_STORAGE"};
     private String carNumber;
+    private String ipAddress;
     private int noImage;
     private float zoomLevel;
-    private int clickState=0;
-    private int noImages=0;
-    private int imageCounter=1;
-    private  int botState=1;
-    private  int prevBotState=1;
-    private int stop=0;
+    private int clickState = 0;
+    private int noImages = 0;
+    private int imageCounter = 1;
+    private int botState = 1;
+    private int prevBotState = 1;
+    private boolean clicking = false;
+    private int stop = 0;
     PreviewView previewView;
     ImageCapture imageCapture;
     Executor cameraExecutor;
     SharedPreferences sharedPreferences;
+    String clickUrl;
+    String stateUrl;
+    Timer timer;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_take_picture);
-        Intent intent = getIntent();
-        DiscoveredBluetoothDevice device=intent.getParcelableExtra(EXTRA_DEVICE);
-        sharedPreferences= getSharedPreferences("settings", Context.MODE_PRIVATE);
-        carNumber =sharedPreferences.getString("carNumber","");
-        noImage =  sharedPreferences.getInt("noImage",0);
-
-        Log.i("zoomLevel", "onCreate: "+zoomLevel);
-        viewModel = new ViewModelProvider(this).get(BotViewModel.class);
-        viewModel.connect(device);
-        viewModel.getConnectionState().observe(this, new Observer<ConnectionState>() {
+        sharedPreferences = getSharedPreferences("settings", Context.MODE_PRIVATE);
+        carNumber = sharedPreferences.getString("carNumber", "");
+        ipAddress = sharedPreferences.getString("ipAddress", "");
+        Log.i("ipAddress", "onCreate: " + ipAddress);
+        noImages = sharedPreferences.getInt("noImage", 0);
+        clickUrl = "http://" + ipAddress + "/click/";
+        stateUrl = "http://" + ipAddress + "/start/";
+        timer = new Timer();
+        TimerTask task = new TimerTask() {
             @Override
-            public void onChanged(ConnectionState state) {
-                switch (state.getState()) {
-                    case CONNECTING:
-                        showToast("Connecting....");
-                        break;
-                    case READY: {
-                        showToast("Connected");
-                        connected=true;
-
-                        viewModel.setNoImages(noImage);
-                        viewModel.setBotState(1);
-                        viewModel.setClick();
-                        break;
+            public void run() {
+                StringRequest mStringRequest = new StringRequest(Request.Method.GET, "http://" + ipAddress + "/both/", response -> {
+                    int clickVal = Integer.parseInt(response.split(",")[0].trim());
+                    int botVal = Integer.parseInt(response.split(",")[1].trim());
+                    clickState = clickVal;
+                    Log.i("clickState", "click state changed to : " + clickState);
+                    if (clickState == 1 && botState == 1 && !clicking) {
+                        clicking = true;
+                        onClick();
                     }
-                    case DISCONNECTED:
-                        if (state instanceof ConnectionState.Disconnected) {
-                            final ConnectionState.Disconnected stateWithReason = (ConnectionState.Disconnected) state;
-                            if (stateWithReason.isNotSupported()) {
-                                showToast("Device not supported");
-
-                            }else{
-                                showToast("Disconnected");
-                            }
-                            connected=false;
-                        }
-                        // fallthrough
-                    case DISCONNECTING:
-                        showToast("Disconnecting..");
-                        break;
-                }
+                    Log.i("botState", "bot State received: " + botVal);
+                    if (botVal == 1) {
+                        botState = 1;
+                        prevBotState = 0;
+                    } else if (botVal == 0 && prevBotState == 0) {
+                        prevBotState = 1;
+                        botState = 0;
+                    }
+                    if (prevBotState == 1 && botState == 0 && stop == 0) {
+                        Log.i("close state", "onChanged: " + "error");
+                        stop = 1;
+                        uploadMultiFile();
+                    }
+                    Log.i("botState", "bot State changed to : " + botState);
+                }, error -> Log.i("bothVals", "Failed to poll : " + error.getMessage()));
+                RequestSingleton.getInstance(getApplicationContext()).addToRequestQueue(mStringRequest);
             }
+        };
 
+//        TimerTask task2 = new TimerTask () {
+//            @Override
+//            public void run () {
+//                StringRequest mStringRequest2 = new StringRequest(Request.Method.GET, stateUrl, response -> {
+//                    int value= Integer.parseInt(response.split(":")[1].trim());
+//                    Log.i("botState", "bot State received: "+value);
+//                    if(value==1){
+//                        botState=1;
+//                        prevBotState=0;
+//                    }else if(value==0&&prevBotState==0){
+//                        prevBotState=1;
+//                        botState=0;
+//                    }
+//                    if(prevBotState==1&&botState==0&&stop==0){
+//                        Log.i("close state", "onChanged: "+"error");
+//                        stop=1;
+//                        uploadMultiFile();
+//                    }
+//                    Log.i("botState", "bot State changed to : "+botState);
+//                }, error -> Log.i("botState", "Failed to poll : "+error.getMessage()));
+//                RequestSingleton.getInstance(getApplicationContext()).addToRequestQueue(mStringRequest2);
+//
+//            }
+//        };
+        StringRequest mStringRequest2Local = new StringRequest(Request.Method.GET, stateUrl.concat("1"), response -> {
+            botState = 1;
+            timer.schedule(task, 0, 500); //time in ms
+//            timer.schedule(task2, 0, 1000); //time in ms
+            Log.i("botState", "bot state initialized to : " + botState);
+        }, error -> {
+            showToast("Could not send state data to Bot");
+            Log.i("botState", "onCreate: Failed to send state " + error.getMessage() + stateUrl);
         });
-        viewModel.getClickState().observe(this, new Observer<Integer>() {
-            @Override
-            public void onChanged(Integer integer) {
-                Log.i("click state changed", "onChanged: "+integer+" "+botState);
-                clickState=integer;
-                if (clickState==1&&botState==1){
-                    onClick();
-                }
-            }
+        StringRequest mStringRequestLocal = new StringRequest(Request.Method.GET, clickUrl.concat("0"), response -> {
+            clickState = 0;
+            RequestSingleton.getInstance(getApplicationContext()).addToRequestQueue(mStringRequest2Local);
 
+            Log.i("clickState", "click state initialized to : " + clickState);
+        }, error -> showToast("Could not send click data to Bot" + error.getMessage() + clickUrl));
 
-        });
-        viewModel.getNoImages().observe(this, new Observer<Integer>() {
-            @Override
-            public void onChanged(Integer integer) {
-//                Log.i("images number changed", "onChanged: "+integer);
-                noImages=integer;
-            }
+        RequestSingleton.getInstance(getApplicationContext()).addToRequestQueue(mStringRequestLocal);
 
-
-        });
-        viewModel.getBotState().observe(this, new Observer<Integer>() {
-            @Override
-            public void onChanged(Integer integer) {
-           if(integer==1){
-               botState=1;
-               prevBotState=0;
-           }else if(integer==0&&prevBotState==0){
-                prevBotState=1;
-                botState=0;
-           }
-
-           if(prevBotState==1&&botState==0&&stop==0){
-               Log.i("close state", "onChanged: "+"error");
-               stop=1;
-               uploadMultiFile();
-
-           }
-
-            }
-        });
 
         cameraExecutor = ContextCompat.getMainExecutor(this);
-        previewView = (PreviewView) findViewById(R.id.previewView);
+        previewView = findViewById(R.id.previewView);
         cameraProviderFuture = ProcessCameraProvider.getInstance(this);
         cameraProviderFuture.addListener(() -> {
             try {
@@ -202,14 +208,12 @@ public class TakePicture extends AppCompatActivity {
     public void onClick() {
         String FileName=imageCounter+".jpg";
         Log.i("image save", "called: ");
-        File directory = new File(Environment.getExternalStorageDirectory().getAbsolutePath(),"Bot");
-
+        File directory = new File(Environment.getExternalStorageDirectory(), "Bot");
         boolean success = true;
         if (!directory.exists()) {
-            success = directory.mkdir();
+            success = directory.mkdirs();
         }
         if (success) {
-
             ImageCapture.OutputFileOptions outputFileOptions =
                     new ImageCapture.OutputFileOptions.Builder(new File(directory,FileName)).build();
             imageCapture.takePicture(outputFileOptions, cameraExecutor,
@@ -217,43 +221,63 @@ public class TakePicture extends AppCompatActivity {
                         @Override
                         public void onImageSaved(ImageCapture.OutputFileResults outputFileResults) {
                             // insert your code here.
-                            showToast("image saved");
-                            imageCounter+=1;
-                            viewModel.setClick();
+                            StringRequest mStringRequest = new StringRequest(Request.Method.GET, clickUrl.concat("0"), response -> {
+                                clickState = 0;
+                                Log.i("clickState", "click state changed to : " + clickState);
+                                clicking = false;
+                                showToast("image " + imageCounter + " saved");
+                                imageCounter += 1;
+                            }, error -> {
+                                showToast("Could not send click data to Bot");
+                                clicking = false;
+                            });
+                            RequestSingleton.getInstance(getApplicationContext()).addToRequestQueue(mStringRequest);
+
                         }
                         @Override
                         public void onError(ImageCaptureException error) {
                             error.printStackTrace();
+                            clicking = false;
                             showToast("Failed to  save");
                         }
                     });
         } else {
             // Do something else on failure
+            clicking = false;
             showToast("Could not create folder");
 
         }
 
     }
 
+    @Override
+    protected void onDestroy() {
+        if (timer != null) {
+            timer.cancel();
+        }
+
+        super.onDestroy();
+    }
+
     private void uploadMultiFile() {
-        File folder = new File(Environment.getExternalStorageDirectory().getAbsolutePath(),"Bot");
-        if(folder.exists()){
+        File folder = new File(Environment.getExternalStorageDirectory(), "Bot");
+        if (folder.exists()) {
             showToast("Project is being created...");
             SharedPreferences prefs = new SecurePreferences(getApplicationContext());
-            String auth_token="Bearer ";
-            String token= prefs.getString("api_token","");
-            String registration=sharedPreferences.getString("carNumber","");
-            auth_token+=token;
-            File[] filesToUpload=folder.listFiles();
-            if(filesToUpload!=null&&filesToUpload.length>0){
-                Log.i("bot value changed", "files upload: "+filesToUpload.length);
-
+            String auth_token = "Bearer ";
+            String token = prefs.getString("api_token", "");
+            String registration = sharedPreferences.getString("carNumber", "");
+            auth_token += token;
+            File[] filesToUpload = folder.listFiles();
+            if (filesToUpload != null && filesToUpload.length > 0) {
+                Log.i("bot value changed", "files upload: " + filesToUpload.length);
+                showToast("Uploading...");
                 FileUploader fileUploader = new FileUploader();
                 SharedPreferences sharedpreferences = getSharedPreferences("settings", Context.MODE_PRIVATE);
-                if (sharedpreferences.contains("id")){
-                    int id=sharedPreferences.getInt("id",0);
-                    Log.i("update project", "uploadMultiFile: "+id);
-                    fileUploader.updateFiles("https://dev.onetobeam.com/spinomate/public/api/projects/"+id, "images[]", filesToUpload, new FileUploader.FileUploaderCallback() {
+                if (sharedpreferences.contains("id")) {
+                    int id = sharedPreferences.getInt("id", 0);
+                    Log.i("update project", "uploadMultiFile: " + id);
+                    fileUploader.updateFiles("https://dev.onetobeam.com/spinomate/public/api/projects/" + id, "images[]", filesToUpload, new FileUploader.FileUploaderCallback() {
                         @Override
                         public void onError() {
                             showToast("Failed to upload");
@@ -263,6 +287,9 @@ public class TakePicture extends AppCompatActivity {
                         @Override
                         public void onFinish(String responses) {
                             showToast("Project created!");
+                            if (timer != null) {
+                                timer.cancel();
+                            }
                             Intent i = new Intent(getApplicationContext(), Projects.class);
                             i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                             getApplication().startActivity(i);

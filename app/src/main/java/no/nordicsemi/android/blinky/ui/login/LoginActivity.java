@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import no.nordicsemi.android.blinky.R;
+import no.nordicsemi.android.blinky.Remote;
 import no.nordicsemi.android.blinky.ScannerActivity;
 import no.nordicsemi.android.blinky.ui.Projects;
 
@@ -105,7 +106,7 @@ public class LoginActivity extends AppCompatActivity {
             public void onClick(View v) {
                 SharedPreferences prefs = new SecurePreferences(getApplicationContext());
                 prefs.edit().clear().apply();
-                            Intent i = new Intent(getApplicationContext(), ScannerActivity.class);
+                Intent i = new Intent(getApplicationContext(), Remote.class);
                             i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                             getApplication().startActivity(i);
                             finish();

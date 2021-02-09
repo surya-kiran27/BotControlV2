@@ -70,22 +70,25 @@ public class CameraSettings extends AppCompatActivity {
         }
         sharedpreferences = getSharedPreferences("settings", Context.MODE_PRIVATE);
 
-        previewView = (PreviewView) findViewById(R.id.previewView);
+        previewView = findViewById(R.id.previewView);
 
         Intent i = getIntent();
         String carNumber = i.getStringExtra("carNumber");
         String noImage = i.getStringExtra("noImage");
-        button=findViewById(R.id.send);
+        String ipAddress = i.getStringExtra("ipAddress");
+
+        button = findViewById(R.id.send);
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 SharedPreferences.Editor editor = sharedpreferences.edit();
-
+                Log.i("ipAddress", "onClick: " + ipAddress);
                 editor.putString("carNumber", carNumber);
+                editor.putString("ipAddress", ipAddress);
                 editor.putInt("noImage", Integer.parseInt(noImage));
                 editor.putFloat("zoomLevel", Float.parseFloat(String.valueOf(zoomLevel)));
                 editor.apply();
-                Intent i = new Intent(getApplicationContext(), ScannerActivity.class);
+                Intent i = new Intent(getApplicationContext(), TakePicture.class);
                 i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 getApplication().startActivity(i);
                 finish();

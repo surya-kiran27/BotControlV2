@@ -45,8 +45,6 @@ public class Projects extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_projects);
-        File directory = new File(Environment.getExternalStorageDirectory().getAbsolutePath(),"Bot");
-//        deleteFiles(directory.getAbsolutePath());
         sharedpreferences = getSharedPreferences("settings", Context.MODE_PRIVATE);
         sharedpreferences.edit().clear().apply();
         listView = (ListView) findViewById(R.id.list);
@@ -120,18 +118,7 @@ public class Projects extends AppCompatActivity {
             }
         });
     }
-    public static void deleteFiles(String path) {
 
-        File file = new File(path);
-
-        if (file.exists()) {
-            String deleteCmd = "rm -r " + path;
-            Runtime runtime = Runtime.getRuntime();
-            try {
-                runtime.exec(deleteCmd);
-            } catch (IOException e) { }
-        }
-    }
 
 }
 
