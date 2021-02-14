@@ -34,8 +34,8 @@ public class FileUploader {
     private File[] files;
     public int uploadIndex = -1;
     private String uploadURL = "";
-    private String filekey="";
-    private UploadInterface uploadInterface;
+    private String filekey = "";
+    private final UploadInterface uploadInterface;
     private String auth_token = "";
     private String responses;
     private String registration_no;
@@ -134,17 +134,6 @@ public class FileUploader {
 
         for(int i=0; i<files.length; i++){
             File file = new File(files[i].getPath());
-            int compressionRatio = 2; //1 == originalImage, 2 = 50% compression, 4=25% compress
-            try {
-                Bitmap bitmap = BitmapFactory.decodeFile (file.getPath ());
-                bitmap.compress (Bitmap.CompressFormat.JPEG, compressionRatio, new FileOutputStream(file));
-            }
-            catch (Throwable t) {
-                Log.e("ERROR", "Error compressing file." + t.toString ());
-                t.printStackTrace ();
-            }
-            Log.i("bot value changed", "onChanged:check2 inside update files");
-
             RequestBody data =  RequestBody.create(MediaType.parse("multipart/form-data"),
                     file);
 

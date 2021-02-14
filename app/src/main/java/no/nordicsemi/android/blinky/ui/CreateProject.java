@@ -100,7 +100,7 @@ public class CreateProject extends AppCompatActivity {
                     return;
                 }
                 String finalCarNumber = carNumber;
-                String url = "http://" + ipAddress + "/number/" + carNumber;
+                String url = "http://" + ipAddress + "/number/" + selected;
                 StringRequest mStringRequest = new StringRequest(Request.Method.GET, url, new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {

@@ -286,7 +286,7 @@ public class TakePicture extends AppCompatActivity {
 
                         @Override
                         public void onFinish(String responses) {
-                            showToast("Project created!");
+                            showToast("Project updated!");
                             if (timer != null) {
                                 timer.cancel();
                             }
@@ -308,6 +308,9 @@ public class TakePicture extends AppCompatActivity {
                         @Override
                         public void onFinish(String responses) {
                             showToast("Project created!");
+                            if (timer != null) {
+                                timer.cancel();
+                            }
                             Intent i = new Intent(getApplicationContext(), Projects.class);
                             i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                             getApplication().startActivity(i);
