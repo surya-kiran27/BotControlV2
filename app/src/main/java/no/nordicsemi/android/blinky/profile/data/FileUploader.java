@@ -107,7 +107,8 @@ public class FileUploader {
                     Log.i("bot value changed", "onChanged: "+jsonElement.toString());
                     responses=jsonElement.toString();
                 }else{
-                    Log.i("bot value changed", "onChanged: "+response.toString());
+                    Log.i("bot value changed", "onChanged: " + response.toString());
+                    responses = null;
                 }
 
             }

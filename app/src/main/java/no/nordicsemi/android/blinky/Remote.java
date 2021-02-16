@@ -1,18 +1,13 @@
 package no.nordicsemi.android.blinky;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.lifecycle.Observer;
-import androidx.lifecycle.ViewModelProvider;
 
-import android.content.Intent;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
-import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.android.volley.Request;
@@ -20,10 +15,6 @@ import com.android.volley.toolbox.StringRequest;
 
 import java.util.Timer;
 import java.util.TimerTask;
-
-import no.nordicsemi.android.ble.livedata.state.ConnectionState;
-import no.nordicsemi.android.blinky.adapter.DiscoveredBluetoothDevice;
-import no.nordicsemi.android.blinky.viewmodels.BotViewModel;
 
 public class Remote extends AppCompatActivity {
     private int botState = 1;

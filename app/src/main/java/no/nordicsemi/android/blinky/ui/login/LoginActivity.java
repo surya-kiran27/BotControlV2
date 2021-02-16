@@ -28,7 +28,6 @@ import java.util.Map;
 
 import no.nordicsemi.android.blinky.R;
 import no.nordicsemi.android.blinky.Remote;
-import no.nordicsemi.android.blinky.ScannerActivity;
 import no.nordicsemi.android.blinky.ui.Projects;
 
 public class LoginActivity extends AppCompatActivity {

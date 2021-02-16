@@ -11,56 +11,29 @@ import androidx.camera.core.Preview;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
 import androidx.core.content.ContextCompat;
-import androidx.lifecycle.Observer;
-import androidx.lifecycle.ViewModelProvider;
 
 import android.content.Context;
-import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.Handler;
-import android.os.Message;
-import android.util.Base64;
 import android.util.Log;
 import android.widget.Toast;
 
 import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.securepreferences.SecurePreferences;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 
-import no.nordicsemi.android.ble.livedata.state.ConnectionState;
 import no.nordicsemi.android.blinky.R;
 import no.nordicsemi.android.blinky.RequestSingleton;
-import no.nordicsemi.android.blinky.ScannerActivity;
-import no.nordicsemi.android.blinky.adapter.DiscoveredBluetoothDevice;
 import no.nordicsemi.android.blinky.profile.data.FileUploader;
-import no.nordicsemi.android.blinky.viewmodels.BotViewModel;
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.MediaType;
-import okhttp3.MultipartBody;
-import okhttp3.RequestBody;
-import okhttp3.ResponseBody;
-import retrofit2.Retrofit;
 
 public class TakePicture extends AppCompatActivity {
     private ListenableFuture<ProcessCameraProvider> cameraProviderFuture;
@@ -126,34 +99,10 @@ public class TakePicture extends AppCompatActivity {
             }
         };
 
-//        TimerTask task2 = new TimerTask () {
-//            @Override
-//            public void run () {
-//                StringRequest mStringRequest2 = new StringRequest(Request.Method.GET, stateUrl, response -> {
-//                    int value= Integer.parseInt(response.split(":")[1].trim());
-//                    Log.i("botState", "bot State received: "+value);
-//                    if(value==1){
-//                        botState=1;
-//                        prevBotState=0;
-//                    }else if(value==0&&prevBotState==0){
-//                        prevBotState=1;
-//                        botState=0;
-//                    }
-//                    if(prevBotState==1&&botState==0&&stop==0){
-//                        Log.i("close state", "onChanged: "+"error");
-//                        stop=1;
-//                        uploadMultiFile();
-//                    }
-//                    Log.i("botState", "bot State changed to : "+botState);
-//                }, error -> Log.i("botState", "Failed to poll : "+error.getMessage()));
-//                RequestSingleton.getInstance(getApplicationContext()).addToRequestQueue(mStringRequest2);
-//
-//            }
-//        };
+
         StringRequest mStringRequest2Local = new StringRequest(Request.Method.GET, stateUrl.concat("1"), response -> {
             botState = 1;
             timer.schedule(task, 0, 500); //time in ms
-//            timer.schedule(task2, 0, 1000); //time in ms
             Log.i("botState", "bot state initialized to : " + botState);
         }, error -> {
             showToast("Could not send state data to Bot");
@@ -286,7 +235,7 @@ public class TakePicture extends AppCompatActivity {
 
                         @Override
                         public void onFinish(String responses) {
-                            showToast("Project updated!");
+                            showToast("Project updated!" + responses);
                             if (timer != null) {
                                 timer.cancel();
                             }
@@ -302,15 +251,26 @@ public class TakePicture extends AppCompatActivity {
                         @Override
                         public void onError() {
                             showToast("Failed to upload");
-
+                            Intent i = new Intent(getApplicationContext(), Projects.class);
+                            i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            getApplication().startActivity(i);
+                            finish();
                         }
 
                         @Override
                         public void onFinish(String responses) {
-                            showToast("Project created!");
                             if (timer != null) {
                                 timer.cancel();
                             }
+                            if (responses == null) {
+                                showToast("Project Failed to create!" + responses);
+                            } else {
+                                showToast("Project created!" + responses);
+                                sharedpreferences.edit().clear().apply();
+
+                            }
+
+                            Log.i("Res", "onFinish: " + responses);
                             Intent i = new Intent(getApplicationContext(), Projects.class);
                             i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                             getApplication().startActivity(i);

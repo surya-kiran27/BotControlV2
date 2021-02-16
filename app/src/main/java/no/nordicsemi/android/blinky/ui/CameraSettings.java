@@ -4,29 +4,19 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.Camera;
 import androidx.camera.core.CameraControl;
-import androidx.camera.core.CameraInfo;
 import androidx.camera.core.CameraSelector;
-import androidx.camera.core.FocusMeteringAction;
-import androidx.camera.core.FocusMeteringResult;
-import androidx.camera.core.ImageCapture;
-import androidx.camera.core.MeteringPoint;
-import androidx.camera.core.MeteringPointFactory;
 import androidx.camera.core.Preview;
-import androidx.camera.core.SurfaceOrientedMeteringPointFactory;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.lifecycle.LifecycleOwner;
 
-import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -34,12 +24,9 @@ import android.widget.SeekBar;
 
 import com.google.common.util.concurrent.ListenableFuture;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
 import no.nordicsemi.android.blinky.R;
-import no.nordicsemi.android.blinky.ScannerActivity;
 
 public class CameraSettings extends AppCompatActivity {
     private Button button;
@@ -94,16 +81,16 @@ public class CameraSettings extends AppCompatActivity {
                 finish();
             }
         });
-        seekBar=(SeekBar)findViewById(R.id.zoom);
+        seekBar = findViewById(R.id.zoom);
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress,
                                           boolean fromUser) {
-                zoomLevel=progress;
-                cameraControl.setLinearZoom((float)(zoomLevel)/100);
+                zoomLevel = progress;
+                cameraControl.setLinearZoom((float) (zoomLevel) / 100);
 
 
-                Log.i("progess Change", "onProgressChanged: "+(zoomLevel));
+                Log.i("progess Change", "onProgressChanged: " + (zoomLevel));
 
             }
 
