@@ -5,12 +5,16 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.text.format.Formatter;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
@@ -34,7 +38,11 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.util.Map;
 
 import no.nordicsemi.android.blinky.R;
 import no.nordicsemi.android.blinky.RequestSingleton;
@@ -50,31 +58,27 @@ public class CreateProject extends AppCompatActivity {
     ArrayAdapter<String> adapter;
     SharedPreferences sharedpreferences;
     String ipAddress = "";
-    private NsdManager mNsdManager;
-    private NsdManager.DiscoveryListener mDiscoveryListener;
-    private NsdManager.ResolveListener mResolveListener;
-    private NsdServiceInfo mServiceInfo;
-    public String mEsp32Address;
-    private static final String SERVICE_TYPE = "_http._tcp.";
+    NsdManager.DiscoveryListener mDiscoveryListener;
+    String mServiceName;
+    NsdServiceInfo mServiceInfo;
+    ServerSocket mServerSocket;
+    int mLocalPort;
+
+    NsdManager mNsdManager;
+
+    final String TAG = "---Networking";
+    final String SERVICE_TYPE = "_http._tcp.";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_create_project);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            mNsdManager = (NsdManager) (getApplicationContext().getSystemService(Context.NSD_SERVICE));
-        }
 
-
-        initializeResolveListener();
-        initializeDiscoveryListener();
-        mNsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, mDiscoveryListener);
         sharedpreferences = getSharedPreferences("settings", Context.MODE_PRIVATE);
         button = findViewById(R.id.next);
         spinner = findViewById(R.id.spinner);
         editText = findViewById(R.id.carNumber);
-        editText2 = findViewById(R.id.ipAddress);
         if (sharedpreferences.contains("ipAddress")) {
             ipAddress = sharedpreferences.getString("ipAddress", "");
             editText2.setText(ipAddress);
@@ -113,9 +117,9 @@ public class CreateProject extends AppCompatActivity {
                     return;
                 }
 
-                ipAddress = String.valueOf(editText2.getText());
+
                 if (ipAddress.length() == 0) {
-                    showMessage("Please enter a valid IP Address");
+                    showMessage("esp32 not found");
                     return;
                 }
                 String finalCarNumber = carNumber;
@@ -148,84 +152,18 @@ public class CreateProject extends AppCompatActivity {
 
             }
         });
+        try {
+            mServerSocket = new ServerSocket(0);
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        // Store the chosen port.
+        mLocalPort = mServerSocket.getLocalPort();
+
+        registerService(mLocalPort);
     }
 
-    private void initializeDiscoveryListener() {
-
-        // Instantiate a new DiscoveryListener
-        mDiscoveryListener = new NsdManager.DiscoveryListener() {
-
-            //  Called as soon as service discovery begins.
-            @Override
-            public void onDiscoveryStarted(String regType) {
-                Log.i("started disc", "onDiscoveryStarted: ");
-            }
-
-            @Override
-            public void onServiceFound(NsdServiceInfo service) {
-                // A service was found!  Do something with it.
-                String name = service.getServiceName();
-                String type = service.getServiceType();
-                Log.d("NSD", "Service Name=" + name);
-                Log.d("NSD", "Service Type=" + type);
-                if (type.equals(SERVICE_TYPE) && name.contains("esp32")) {
-                    Log.d("NSD", "Service Found @ '" + name + "'");
-                    mNsdManager.resolveService(service, mResolveListener);
-                }
-            }
-
-            @Override
-            public void onServiceLost(NsdServiceInfo service) {
-                // When the network service is no longer available.
-                // Internal bookkeeping code goes here.
-            }
-
-            @Override
-            public void onDiscoveryStopped(String serviceType) {
-                Log.i("stopped", "Discovery stopped: " + serviceType);
-            }
-
-            @Override
-            public void onStartDiscoveryFailed(String serviceType, int errorCode) {
-                Log.e("failed", "Discovery failed: Error code:" + errorCode);
-
-                mNsdManager.stopServiceDiscovery(this);
-            }
-
-            @Override
-            public void onStopDiscoveryFailed(String serviceType, int errorCode) {
-                Log.e("failed", "Discovery failed: Error code:" + errorCode);
-
-                mNsdManager.stopServiceDiscovery(this);
-            }
-        };
-    }
-
-    private void initializeResolveListener() {
-        mResolveListener = new NsdManager.ResolveListener() {
-
-            @Override
-            public void onResolveFailed(NsdServiceInfo serviceInfo, int errorCode) {
-                // Called when the resolve fails.  Use the error code to debug.
-                Log.e("NSD", "Resolve failed" + errorCode);
-                showMessage("Failed to find esp32 " + errorCode);
-            }
-
-            @Override
-            public void onServiceResolved(NsdServiceInfo serviceInfo) {
-                mServiceInfo = serviceInfo;
-
-                // Port is being returned as 9. Not needed.
-                //int port = mServiceInfo.getPort();
-
-                InetAddress host = mServiceInfo.getHost();
-                String address = host.getHostAddress();
-                Log.d("NSD", "Resolved address = " + address);
-                showMessage("found esp32 at " + address);
-                mEsp32Address = address;
-            }
-        };
-    }
 
     private void showMessage(String message) {
         Toast.makeText(getApplicationContext(), message, Toast.LENGTH_SHORT).show();
@@ -244,5 +182,104 @@ public class CreateProject extends AppCompatActivity {
             }
         }
     }
+
+    public void registerService(int port) {
+        // Create the NsdServiceInfo object, and populate it.
+        mServiceInfo = new NsdServiceInfo();
+
+        // The name is subject to change based on conflicts
+        // with other services advertised on the same network.
+        mServiceInfo.setServiceName("NsdChat");
+        mServiceInfo.setServiceType("_workstation._tcp.");
+        mServiceInfo.setPort(port);
+
+        mNsdManager = (NsdManager) getApplicationContext().getSystemService(Context.NSD_SERVICE);
+
+        initializeDiscoveryListener();
+        mNsdManager.discoverServices(
+                SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, mDiscoveryListener);
+    }
+
+
+    public void initializeDiscoveryListener() {
+
+        // Instantiate a new DiscoveryListener
+        mDiscoveryListener = new NsdManager.DiscoveryListener() {
+
+            //  Called as soon as service discovery begins.
+            @Override
+            public void onDiscoveryStarted(String regType) {
+                Log.d(TAG, "Service discovery started");
+                showMessage("Searching for esp32.....");
+
+            }
+
+            @Override
+            public void onServiceFound(NsdServiceInfo service) {
+                // A service was found!  Do something with it.
+                Log.d(TAG, "Service discovery success: " + service);
+                if (!service.getServiceType().equals(SERVICE_TYPE)) {
+                    // Service type is the string containing the protocol and
+                    // transport layer for this service.
+                    Log.d(TAG, "Unknown Service Type: " + service.getServiceType());
+                } else if (service.getServiceName().equals(mServiceName)) {
+                    // The name of the service tells the user what they'd be
+                    // connecting to. It could be "Bob's Chat App".
+                    Log.d(TAG, "Same machine: " + mServiceName);
+                } else if (service.getServiceName().contains("esp32")) {
+                    mNsdManager.resolveService(service, new NsdManager.ResolveListener() {
+
+                        @Override
+                        public void onServiceResolved(NsdServiceInfo serviceInfo) {
+                            // TODO Auto-generated method stub
+                            mServiceInfo = serviceInfo;
+
+                            // Port is being returned as 9. Not needed.
+                            //int port = mServiceInfo.getPort();
+
+                            InetAddress host = mServiceInfo.getHost();
+                            ipAddress = host.getHostAddress();
+                            showMessage("esp32 found at " + ipAddress);
+                            Log.d("NSD", "Resolved address = " + ipAddress);
+                        }
+
+                        @Override
+                        public void onResolveFailed(NsdServiceInfo serviceInfo, int errorCode) {
+                            // TODO Auto-generated method stub
+                            Log.d(TAG, "Service resolve failed!");
+                            showMessage("failed to find esp32");
+
+                        }
+
+                    });
+                }
+            }
+
+            @Override
+            public void onServiceLost(NsdServiceInfo service) {
+                // When the network service is no longer available.
+                // Internal bookkeeping code goes here.
+                Log.e(TAG, "service lost: " + service);
+            }
+
+            @Override
+            public void onDiscoveryStopped(String serviceType) {
+                Log.i(TAG, "Discovery stopped: " + serviceType);
+            }
+
+            @Override
+            public void onStartDiscoveryFailed(String serviceType, int errorCode) {
+                Log.e(TAG, "Discovery failed: Error code: " + errorCode);
+                mNsdManager.stopServiceDiscovery(this);
+            }
+
+            @Override
+            public void onStopDiscoveryFailed(String serviceType, int errorCode) {
+                Log.e(TAG, "Discovery failed: Error code: " + errorCode);
+                mNsdManager.stopServiceDiscovery(this);
+            }
+        };
+    }
+
 
 }
