@@ -79,12 +79,12 @@ public class CreateProject extends AppCompatActivity {
         button = findViewById(R.id.next);
         spinner = findViewById(R.id.spinner);
         editText = findViewById(R.id.carNumber);
-        if (sharedpreferences.contains("ipAddress")) {
-            ipAddress = sharedpreferences.getString("ipAddress", "");
-            editText2.setText(ipAddress);
-        }
-        String[] items = new String[]{"2", "36", "24", "18", "12"};
-        selected = "2";
+//        if (sharedpreferences.contains("ipAddress")) {
+//            ipAddress = sharedpreferences.getString("ipAddress", "");
+//            editText2.setText(ipAddress);
+//        }
+        String[] items = new String[]{"4", "36", "24", "18", "12"};
+        selected = "4";
         adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, items);
         spinner.setAdapter(adapter);
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {

@@ -74,6 +74,7 @@ public class TakePicture extends AppCompatActivity {
                 StringRequest mStringRequest = new StringRequest(Request.Method.GET, "http://" + ipAddress + "/both/", response -> {
                     int clickVal = Integer.parseInt(response.split(",")[0].trim());
                     int botVal = Integer.parseInt(response.split(",")[1].trim());
+
                     clickState = clickVal;
                     Log.i("clickState", "click state changed to : " + clickState);
                     if (clickState == 1 && botState == 1 && !clicking) {
@@ -103,17 +104,19 @@ public class TakePicture extends AppCompatActivity {
         StringRequest mStringRequest2Local = new StringRequest(Request.Method.GET, stateUrl.concat("1"), response -> {
             botState = 1;
             timer.schedule(task, 0, 500); //time in ms
+            showToast("Bot Start State initialized to " + botState);
             Log.i("botState", "bot state initialized to : " + botState);
         }, error -> {
-            showToast("Could not send state data to Bot");
+            showToast("Could not send initial start state data to Bot");
             Log.i("botState", "onCreate: Failed to send state " + error.getMessage() + stateUrl);
         });
         StringRequest mStringRequestLocal = new StringRequest(Request.Method.GET, clickUrl.concat("0"), response -> {
             clickState = 0;
             RequestSingleton.getInstance(getApplicationContext()).addToRequestQueue(mStringRequest2Local);
+            showToast("Bot Click State initialized to " + botState);
 
             Log.i("clickState", "click state initialized to : " + clickState);
-        }, error -> showToast("Could not send click data to Bot" + error.getMessage() + clickUrl));
+        }, error -> showToast("Could not send initial click data to Bot" + error.getMessage() + clickUrl));
 
         RequestSingleton.getInstance(getApplicationContext()).addToRequestQueue(mStringRequestLocal);
 
@@ -175,9 +178,19 @@ public class TakePicture extends AppCompatActivity {
                                 Log.i("clickState", "click state changed to : " + clickState);
                                 clicking = false;
                                 showToast("image " + imageCounter + " saved");
+//                                if(imageCounter>=noImages){
+//                                    StringRequest mStringRequest2 = new StringRequest(Request.Method.GET, stateUrl.concat("0"), response2 -> {
+//                                        showToast("Finished Clicking Images");
+//                                    }, error -> {
+//                                        showToast("Failed to send stop bot command.."+error.getMessage());
+//                                        clicking = false;
+//                                    });
+//                                    RequestSingleton.getInstance(getApplicationContext()).addToRequestQueue(mStringRequest2);
+//                                }
                                 imageCounter += 1;
+
                             }, error -> {
-                                showToast("Could not send click data to Bot");
+                                showToast("Could not send click command to Bot");
                                 clicking = false;
                             });
                             RequestSingleton.getInstance(getApplicationContext()).addToRequestQueue(mStringRequest);
