@@ -101,16 +101,8 @@ public class FileUploader {
         call.enqueue(new Callback<JsonElement>() {
             @Override
             public void onResponse(Call<JsonElement> call, retrofit2.Response<JsonElement> response) {
-                if (response.isSuccessful()) {
-                    JsonElement jsonElement = response.body();
-                    assert jsonElement != null;
-                    Log.i("bot value changed", "onChanged: "+jsonElement.toString());
-                    responses=jsonElement.toString();
-                }else{
-                    Log.i("bot value changed", "onChanged: " + response.toString());
-                    responses = null;
-                }
-
+                int code = response.code();
+                responses = String.valueOf(code);
             }
             @Override
             public void onFailure(Call<JsonElement> call, Throwable t) {

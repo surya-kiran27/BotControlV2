@@ -18,9 +18,13 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
 import android.widget.Toast;
 
 import com.android.volley.Request;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.securepreferences.SecurePreferences;
@@ -36,6 +40,14 @@ import no.nordicsemi.android.blinky.RequestSingleton;
 import no.nordicsemi.android.blinky.profile.data.FileUploader;
 
 public class TakePicture extends AppCompatActivity {
+    PreviewView previewView;
+    ImageCapture imageCapture;
+    Executor cameraExecutor;
+    SharedPreferences sharedPreferences;
+    String clickUrl;
+    String stateUrl;
+    Button stopBot;
+    Timer timer;
     private ListenableFuture<ProcessCameraProvider> cameraProviderFuture;
     private String carNumber;
     private String ipAddress;
@@ -48,18 +60,12 @@ public class TakePicture extends AppCompatActivity {
     private int prevBotState = 1;
     private boolean clicking = false;
     private int stop = 0;
-    PreviewView previewView;
-    ImageCapture imageCapture;
-    Executor cameraExecutor;
-    SharedPreferences sharedPreferences;
-    String clickUrl;
-    String stateUrl;
-    Timer timer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_take_picture);
+        stopBot = findViewById(R.id.stopButton);
         sharedPreferences = getSharedPreferences("settings", Context.MODE_PRIVATE);
         carNumber = sharedPreferences.getString("carNumber", "");
         ipAddress = sharedPreferences.getString("ipAddress", "");
@@ -92,7 +98,7 @@ public class TakePicture extends AppCompatActivity {
                     if (prevBotState == 1 && botState == 0 && stop == 0) {
                         Log.i("close state", "onChanged: " + "error");
                         stop = 1;
-                        uploadMultiFile();
+//                        uploadMultiFile();
                     }
                     Log.i("botState", "bot State changed to : " + botState);
                 }, error -> Log.i("bothVals", "Failed to poll : " + error.getMessage()));
@@ -133,10 +139,24 @@ public class TakePicture extends AppCompatActivity {
                 // This should never be reached.
             }
         }, cameraExecutor);
+
+        stopBot.setOnClickListener(v -> {
+            StringRequest mStringRequest = new StringRequest(Request.Method.GET, stateUrl.concat("0"), response2 -> {
+                showToast("Bot state changed to stop!");
+                Intent i = new Intent(getApplicationContext(), Projects.class);
+                i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getApplication().startActivity(i);
+                finish();
+//                uploadMultiFile();
+            }, error -> {
+                showToast("Failed to send stop command to bot..Try Again!" + error.getMessage());
+            });
+            RequestSingleton.getInstance(getApplicationContext()).addToRequestQueue(mStringRequest);
+        });
     }
 
-   private void bindPreview(@NonNull ProcessCameraProvider cameraProvider) {
-        Preview preview = new Preview.Builder()
+    private void bindPreview(@NonNull ProcessCameraProvider cameraProvider) {
+        Preview preview = new Preview.Builder().setTargetRotation(this.getResources().getConfiguration().orientation)
                 .build();
         CameraSelector cameraSelector = new CameraSelector.Builder()
                 .requireLensFacing(CameraSelector.LENS_FACING_BACK)
@@ -144,21 +164,23 @@ public class TakePicture extends AppCompatActivity {
 
         preview.setSurfaceProvider(previewView.getSurfaceProvider());
         imageCapture =
-               new ImageCapture.Builder()
-                       .setTargetRotation(getWindowManager().getDefaultDisplay().getRotation())
-                       .build();
-        Camera camera = cameraProvider.bindToLifecycle(this, cameraSelector,imageCapture, preview);
-     CameraControl cameraControl=camera.getCameraControl();
-     zoomLevel = sharedPreferences.getFloat("zoomLevel",0f);
+                new ImageCapture.Builder()
+                        .setTargetRotation(this.getResources().getConfiguration().orientation)
+                        .build();
+        Camera camera = cameraProvider.bindToLifecycle(this, cameraSelector, imageCapture, preview);
+        CameraControl cameraControl = camera.getCameraControl();
+        zoomLevel = sharedPreferences.getFloat("zoomLevel", 0f);
 
-       Log.i("mod zoom level", "bindPreview: "+zoomLevel/100.0f);
-     cameraControl.setLinearZoom(zoomLevel/100.0f);
+        Log.i("mod zoom level", "bindPreview: " + zoomLevel / 100.0f);
+        cameraControl.setLinearZoom(zoomLevel / 100.0f);
     }
+
     private void showToast(String errorString) {
         Toast.makeText(getApplicationContext(), errorString, Toast.LENGTH_SHORT).show();
     }
+
     public void onClick() {
-        String FileName=imageCounter+".jpg";
+        String FileName = imageCounter + ".jpg";
         Log.i("image save", "called: ");
         File directory = new File(Environment.getExternalStorageDirectory(), "Bot");
         boolean success = true;
@@ -167,9 +189,9 @@ public class TakePicture extends AppCompatActivity {
         }
         if (success) {
             ImageCapture.OutputFileOptions outputFileOptions =
-                    new ImageCapture.OutputFileOptions.Builder(new File(directory,FileName)).build();
+                    new ImageCapture.OutputFileOptions.Builder(new File(directory, FileName)).build();
             imageCapture.takePicture(outputFileOptions, cameraExecutor,
-                    new ImageCapture.OnImageSavedCallback () {
+                    new ImageCapture.OnImageSavedCallback() {
                         @Override
                         public void onImageSaved(ImageCapture.OutputFileResults outputFileResults) {
                             // insert your code here.
@@ -178,29 +200,24 @@ public class TakePicture extends AppCompatActivity {
                                 Log.i("clickState", "click state changed to : " + clickState);
                                 clicking = false;
                                 showToast("image " + imageCounter + " saved");
-//                                if(imageCounter>=noImages){
-//                                    StringRequest mStringRequest2 = new StringRequest(Request.Method.GET, stateUrl.concat("0"), response2 -> {
-//                                        showToast("Finished Clicking Images");
-//                                    }, error -> {
-//                                        showToast("Failed to send stop bot command.."+error.getMessage());
-//                                        clicking = false;
-//                                    });
-//                                    RequestSingleton.getInstance(getApplicationContext()).addToRequestQueue(mStringRequest2);
-//                                }
+                                if (imageCounter >= noImages) {
+                                    showToast("Finished clicking images");
+
+                                }
                                 imageCounter += 1;
 
                             }, error -> {
-                                showToast("Could not send click command to Bot");
+                                showToast("Could not send click command to Bot" + error.getMessage());
                                 clicking = false;
                             });
                             RequestSingleton.getInstance(getApplicationContext()).addToRequestQueue(mStringRequest);
-
                         }
+
                         @Override
                         public void onError(ImageCaptureException error) {
                             error.printStackTrace();
                             clicking = false;
-                            showToast("Failed to  save");
+                            showToast("Failed to  save" + error.getMessage());
                         }
                     });
         } else {
@@ -236,62 +253,39 @@ public class TakePicture extends AppCompatActivity {
                 showToast("Uploading...");
                 FileUploader fileUploader = new FileUploader();
                 SharedPreferences sharedpreferences = getSharedPreferences("settings", Context.MODE_PRIVATE);
-                if (sharedpreferences.contains("id")) {
-                    int id = sharedPreferences.getInt("id", 0);
-                    Log.i("update project", "uploadMultiFile: " + id);
-                    fileUploader.updateFiles("https://dev.onetobeam.com/spinomate/public/api/projects/" + id, "images[]", filesToUpload, new FileUploader.FileUploaderCallback() {
-                        @Override
-                        public void onError() {
-                            showToast("Failed to upload");
+
+                fileUploader.uploadFiles("https://dev.onetobeam.com/spinomate/public/api/projects", "images[]", filesToUpload, new FileUploader.FileUploaderCallback() {
+                    @Override
+                    public void onError() {
+                        showToast("Failed to upload");
+                        Intent i = new Intent(getApplicationContext(), Projects.class);
+                        i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        getApplication().startActivity(i);
+                        finish();
+                    }
+
+                    @Override
+                    public void onFinish(String responses) {
+                        if (timer != null) {
+                            timer.cancel();
+                        }
+                        if (responses == null) {
+                            showToast("Project Failed to create!" + responses);
+                        } else {
+                            showToast("Project created!" + responses);
+                            sharedpreferences.edit().clear().apply();
 
                         }
 
-                        @Override
-                        public void onFinish(String responses) {
-                            showToast("Project updated!" + responses);
-                            if (timer != null) {
-                                timer.cancel();
-                            }
-                            Intent i = new Intent(getApplicationContext(), Projects.class);
-                            i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                            getApplication().startActivity(i);
-                            finish();
-                        }
+                        Log.i("Res", "onFinish: " + responses);
+                        Intent i = new Intent(getApplicationContext(), Projects.class);
+                        i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        getApplication().startActivity(i);
+                        finish();
+                    }
 
-                    },auth_token,registration);
-                }else{
-                    fileUploader.uploadFiles("https://dev.onetobeam.com/spinomate/public/api/projects", "images[]", filesToUpload, new FileUploader.FileUploaderCallback() {
-                        @Override
-                        public void onError() {
-                            showToast("Failed to upload");
-                            Intent i = new Intent(getApplicationContext(), Projects.class);
-                            i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                            getApplication().startActivity(i);
-                            finish();
-                        }
+                }, auth_token, registration);
 
-                        @Override
-                        public void onFinish(String responses) {
-                            if (timer != null) {
-                                timer.cancel();
-                            }
-                            if (responses == null) {
-                                showToast("Project Failed to create!" + responses);
-                            } else {
-                                showToast("Project created!" + responses);
-                                sharedpreferences.edit().clear().apply();
-
-                            }
-
-                            Log.i("Res", "onFinish: " + responses);
-                            Intent i = new Intent(getApplicationContext(), Projects.class);
-                            i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                            getApplication().startActivity(i);
-                            finish();
-                        }
-
-                    },auth_token,registration);
-                }
 
             }
         }

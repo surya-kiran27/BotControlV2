@@ -30,7 +30,7 @@
         app:layout_constraintHorizontal_bias="0.492"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/textView6"
-        app:layout_constraintVertical_bias="0.226" />
+        app:layout_constraintVertical_bias="0.442" />
 
     <Button
         android:id="@+id/stop"
@@ -44,5 +44,17 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/buttonState"
         app:layout_constraintVertical_bias="0.379" />
+
+    <EditText
+        android:id="@+id/ipAddressRemote"
+        android:layout_width="267dp"
+        android:layout_height="49dp"
+        android:ems="10"
+        android:hint="@string/enter_ip_address"
+        android:inputType="textPersonName"
+        app:layout_constraintBottom_toTopOf="@+id/buttonState"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textView6" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

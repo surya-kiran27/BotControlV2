@@ -70,6 +70,7 @@ public class Projects extends AppCompatActivity {
             Log.i("attempting to upload", "onCreate: " + registration + " " + filesToUpload.length);
 
             showToast("Project uploading....." + registration);
+
             fileUploader.uploadFiles("https://dev.onetobeam.com/spinomate/public/api/projects", "images[]", filesToUpload, new FileUploader.FileUploaderCallback() {
                 @Override
                 public void onError() {
@@ -79,6 +80,9 @@ public class Projects extends AppCompatActivity {
 
                 @Override
                 public void onFinish(String responses) {
+                    itemsAdapter.clear();
+                    ids.clear();
+                    getProjects();
                     showToast("Project upload status" + responses);
                 }
 
@@ -105,31 +109,27 @@ public class Projects extends AppCompatActivity {
                 showToast("Updated projects");
             }
         });
-        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView parent, View view, int position, long id) {
-                String selectedItem = (String) parent.getItemAtPosition(position);
-                JSONObject jsonObject = ids.get(position);
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            String selectedItem = (String) parent.getItemAtPosition(position);
+            JSONObject jsonObject = ids.get(position);
 
-                Log.i("selected option", "onItemClick: " + selectedItem + ids.get(position));
-                SharedPreferences.Editor editor = sharedpreferences.edit();
-                editor.putString("carNumber", selectedItem);
-                try {
-                    editor.putInt("id", jsonObject.getInt("id"));
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                }
-                editor.apply();
-                Intent i = new Intent(getApplicationContext(), ProjectInfo.class);
-                try {
-                    i.putExtra("url", jsonObject.getString("product_view_url"));
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                }
-                i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                getApplication().startActivity(i);
-                finish();
+            Log.i("selected option", "onItemClick: " + selectedItem + ids.get(position));
+            SharedPreferences.Editor editor = sharedpreferences.edit();
+            editor.putString("carNumber", selectedItem);
+            try {
+                editor.putInt("id", jsonObject.getInt("id"));
+            } catch (JSONException e) {
+                e.printStackTrace();
             }
+            editor.apply();
+            Intent i = new Intent(getApplicationContext(), ProjectInfo.class);
+            try {
+                i.putExtra("url", jsonObject.getString("product_view_url"));
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+            i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getApplication().startActivity(i);
         });
     }
 
