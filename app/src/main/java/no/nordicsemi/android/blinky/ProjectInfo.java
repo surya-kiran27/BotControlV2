@@ -26,17 +26,17 @@ public class ProjectInfo extends AppCompatActivity {
         setContentView(R.layout.activity_project_info);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        Button button = findViewById(R.id.update);
+//        Button button = findViewById(R.id.update);
         TextView textView = findViewById(R.id.imageUrl);
 
-
-        button.setOnClickListener(v -> {
-            //create project
-            Intent i = new Intent(getApplicationContext(), CreateProject.class);
-            i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            getApplication().startActivity(i);
-            finish();
-        });
+//
+//        button.setOnClickListener(v -> {
+//            //create project
+//            Intent i = new Intent(getApplicationContext(), CreateProject.class);
+//            i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+//            getApplication().startActivity(i);
+//            finish();
+//        });
         Intent i = getIntent();
         String url = i.getStringExtra("url");
         textView.setText(url);

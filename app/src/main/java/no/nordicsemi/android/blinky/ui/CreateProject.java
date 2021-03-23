@@ -79,10 +79,11 @@ public class CreateProject extends AppCompatActivity {
         button = findViewById(R.id.next);
         spinner = findViewById(R.id.spinner);
         editText = findViewById(R.id.carNumber);
-//        if (sharedpreferences.contains("ipAddress")) {
-//            ipAddress = sharedpreferences.getString("ipAddress", "");
-//            editText2.setText(ipAddress);
-//        }
+        editText2 = findViewById(R.id.ipAddress);
+        if (sharedpreferences.contains("ipAddress")) {
+            ipAddress = sharedpreferences.getString("ipAddress", "");
+            editText2.setText(ipAddress);
+        }
         String[] items = new String[]{"4", "36", "24", "18", "12"};
         selected = "4";
         adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, items);
@@ -118,33 +119,34 @@ public class CreateProject extends AppCompatActivity {
                 }
 
 
+                if (editText2.getText().length() > 0) {
+                    Log.i(TAG, "onClick: " + editText2.getText().toString());
+                    ipAddress = editText2.getText().toString();
+                }
                 if (ipAddress.length() == 0) {
-                    showMessage("esp32 not found");
+                    showMessage("Invalid ip address");
                     return;
                 }
                 String finalCarNumber = carNumber;
                 String url = "http://" + ipAddress + "/number/" + selected;
-                StringRequest mStringRequest = new StringRequest(Request.Method.GET, url, new Response.Listener<String>() {
-                    @Override
-                    public void onResponse(String response) {
+                StringRequest mStringRequest = new StringRequest(Request.Method.GET, url, response -> {
 
-                        showMessage(response);
-                        File directory = new File(Environment.getExternalStorageDirectory(), "Bot");
-                        sharedpreferences.edit().clear().apply();
-                        deleteFiles(directory.getPath());
-                        Intent i = new Intent(getApplicationContext(), CameraSettings.class);
-                        i.putExtra("carNumber", finalCarNumber);
-                        i.putExtra("noImage", selected);
-                        i.putExtra("ipAddress", ipAddress);
-                        i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        getApplication().startActivity(i);
-                        finish();
-                    }
+                    showMessage(response);
+                    File directory = new File(Environment.getExternalStorageDirectory(), "Bot");
+                    sharedpreferences.edit().clear().apply();
+                    deleteFiles(directory.getPath());
+                    Intent i = new Intent(getApplicationContext(), CameraSettings.class);
+                    i.putExtra("carNumber", finalCarNumber);
+                    i.putExtra("noImage", selected);
+                    i.putExtra("ipAddress", ipAddress);
+                    i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    getApplication().startActivity(i);
+                    finish();
                 }, new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
                         Log.i("noImages", "onErrorResponse: Failed to send no images " + error.getMessage() + url);
-                        showMessage("Could not send data to Bot");
+                        showMessage("Could not send data to Bot" + error.getMessage());
                     }
                 });
 
@@ -159,9 +161,9 @@ public class CreateProject extends AppCompatActivity {
             e.printStackTrace();
         }
         // Store the chosen port.
-        mLocalPort = mServerSocket.getLocalPort();
+//        mLocalPort = mServerSocket.getLocalPort();
 
-        registerService(mLocalPort);
+//        registerService(mLocalPort);
     }
 
 
@@ -238,8 +240,8 @@ public class CreateProject extends AppCompatActivity {
                             //int port = mServiceInfo.getPort();
 
                             InetAddress host = mServiceInfo.getHost();
-                            ipAddress = host.getHostAddress();
-                            showMessage("esp32 found at " + ipAddress);
+//                            ipAddress = host.getHostAddress();
+//                            showMessage("esp32 found at " + ipAddress);
                             Log.d("NSD", "Resolved address = " + ipAddress);
                         }
 
@@ -247,7 +249,7 @@ public class CreateProject extends AppCompatActivity {
                         public void onResolveFailed(NsdServiceInfo serviceInfo, int errorCode) {
                             // TODO Auto-generated method stub
                             Log.d(TAG, "Service resolve failed!");
-                            showMessage("failed to find esp32");
+//                            showMessage("failed to find esp32");
 
                         }
 
